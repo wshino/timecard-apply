@@ -10,12 +10,13 @@ import {
   handleElementNotFound 
 } from './utils/error-handler';
 import { Config, loadConfig } from './config';
+import { logger, logProcessingResult, logSession } from './utils/logger';
 
 dotenv.config();
 
 async function login(page: Page, config: Config): Promise<void> {
   try {
-    console.log('Navigating to login page...');
+    logger.info('Navigating to login page...');
     await page.goto('https://login.ta.kingoftime.jp/admin', { 
       waitUntil: 'domcontentloaded',
       timeout: config.navigationTimeout 
@@ -38,7 +39,7 @@ async function login(page: Page, config: Config): Promise<void> {
     }
 
     // Input credentials
-    console.log('Entering credentials...');
+    logger.info('Entering credentials...');
     await page.fill('input[name="login_id"]', process.env.KINGOFTIME_ID);
     await page.fill('input[name="login_password"]', process.env.KINGOFTIME_PASSWORD);
 
@@ -62,7 +63,7 @@ async function login(page: Page, config: Config): Promise<void> {
       await handleLoginError(page, new Error('Still on login page after submission'));
     }
 
-    console.log('Login successful!');
+    logger.info('Login successful!');
   } catch (error: any) {
     if (error.name === 'KingOfTimeError') {
       throw error;
@@ -72,10 +73,10 @@ async function login(page: Page, config: Config): Promise<void> {
 }
 
 async function processErrorRow(page: Page, targetRow: any, config: Config): Promise<void> {
-  console.log('Starting to process error row...');
+  logger.info('Starting to process error row...');
   
   // Select time clock application option
-  console.log('Selecting time clock application option...');
+  logger.debug('Selecting time clock application option...');
   
   const selectLocator = await targetRow.$('select.htBlock-selectOther');
   if (!selectLocator) {
@@ -90,14 +91,14 @@ async function processErrorRow(page: Page, targetRow: any, config: Config): Prom
   await page.waitForTimeout(1000);
 
   // Find and click the initial application button
-  console.log('Looking for initial application button...');
+  logger.debug('Looking for initial application button...');
   const buttons = await page.$$('input[type="button"]');
   let buttonClicked = false;
   
   for (const button of buttons) {
     const buttonId = await button.getAttribute('id');
     if (buttonId && buttonId.startsWith('button_') && !buttonId.includes('schedule')) {
-      console.log('Found button, clicking...');
+      logger.debug('Found button, clicking...');
       await button.click();
       buttonClicked = true;
       break;
@@ -113,11 +114,11 @@ async function processErrorRow(page: Page, targetRow: any, config: Config): Prom
   }
 
   // Wait for the form to appear
-  console.log('Waiting for form to appear...');
+  logger.debug('Waiting for form to appear...');
   await page.waitForTimeout(config.formWaitTime);
 
   // Enter clock-in time
-  console.log('Entering clock-in time...');
+  logger.debug('Entering clock-in time...');
   const clockInSelectResult = await page.evaluate(() => {
     const select = document.querySelector('#recording_type_code_1') as HTMLSelectElement;
     if (select) {
@@ -142,7 +143,7 @@ async function processErrorRow(page: Page, targetRow: any, config: Config): Prom
   await page.fill('input[name="request_remark_1"]', config.applicationReason);
 
   // Enter clock-out time
-  console.log('Entering clock-out time...');
+  logger.debug('Entering clock-out time...');
   const clockOutSelectResult = await page.evaluate(() => {
     const select = document.querySelector('#recording_type_code_2') as HTMLSelectElement;
     if (select) {
@@ -167,7 +168,7 @@ async function processErrorRow(page: Page, targetRow: any, config: Config): Prom
   await page.fill('input[name="request_remark_2"]', config.applicationReason);
 
   // Click the final submit button
-  console.log('Clicking final submit button...');
+  logger.debug('Clicking final submit button...');
   const finalButton = await page.waitForSelector('#button_01', { timeout: config.elementTimeout });
   if (!finalButton) {
     throw new KingOfTimeError(
@@ -178,7 +179,7 @@ async function processErrorRow(page: Page, targetRow: any, config: Config): Prom
   }
   
   await finalButton.click();
-  console.log('Final button clicked, waiting for page refresh...');
+  logger.info('Final button clicked, waiting for page refresh...');
   await page.waitForTimeout(config.afterSubmitWaitTime);
 }
 
@@ -191,16 +192,16 @@ async function applyTimecard() {
     const configPath = path.join(process.cwd(), 'config.json');
     
     if (fs.existsSync(configPath)) {
-      console.log('Loading configuration from config.json...');
+      logger.info('Loading configuration from config.json...');
       const configData = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       config = loadConfig(configData);
     } else {
-      console.log('Using default configuration...');
+      logger.info('Using default configuration...');
       config = loadConfig();
     }
     
     if (config.debug) {
-      console.log('Configuration:', JSON.stringify(config, null, 2));
+      logger.debug('Configuration:', config);
     }
     
     browser = await chromium.launch({ headless: config.headless });
@@ -209,7 +210,7 @@ async function applyTimecard() {
 
     // Set up network error handling
     page.on('requestfailed', request => {
-      console.error(`Request failed: ${request.url()} - ${request.failure()?.errorText}`);
+      logger.error(`Request failed: ${request.url()} - ${request.failure()?.errorText}`);
     });
 
     // Login
@@ -218,22 +219,28 @@ async function applyTimecard() {
     // Main processing loop
     let processedCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
+    const startTime = Date.now();
+    
+    logSession('start');
     
     while (true) {
       // Check for session timeout
       if (await checkSessionTimeout(page)) {
-        console.log('Session timeout detected, re-logging in...');
+        logger.warn('Session timeout detected, re-logging in...');
         await login(page, config);
       }
       
       // Wait for the page to stabilize and load all elements
-      console.log('Waiting for page to stabilize...');
+      logger.debug('Waiting for page to stabilize...');
       await page.waitForTimeout(config.afterSubmitWaitTime);
       
       // Get all rows with error status
       const errorRows = await page.$$('tr:has(td[title="エラー勤務です。"])');
       if (!errorRows || errorRows.length === 0) {
-        console.log(`\nProcessing complete! Processed: ${processedCount}, Errors: ${errorCount}`);
+        const duration = Date.now() - startTime;
+        logger.info(`Processing complete! Processed: ${processedCount}, Errors: ${errorCount}, Skipped: ${skippedCount}`);
+        logSession('end', { processed: processedCount, errors: errorCount, skipped: skippedCount, duration });
         break;
       }
 
@@ -248,41 +255,64 @@ async function applyTimecard() {
       }
 
       if (!targetRow) {
-        console.log('No unsubmitted error rows found');
+        logger.info('No unsubmitted error rows found');
         break;
       }
 
-      console.log(`\nFound unsubmitted error row (${processedCount + 1})`);
+      logger.info(`Found unsubmitted error row (${processedCount + 1})`);
       
       try {
         await processErrorRow(page, targetRow, config);
         processedCount++;
-        console.log(`✓ Successfully processed row ${processedCount}`);
+        logger.info(`✓ Successfully processed row ${processedCount}`);
+        logProcessingResult({
+          type: 'success',
+          rowId: `row-${processedCount}`,
+          message: `Successfully processed row ${processedCount}`
+        });
       } catch (error: any) {
         errorCount++;
-        console.error(`✗ Error processing row: ${error.message}`);
+        logger.error(`✗ Error processing row: ${error.message}`);
         
         if (error.code === ErrorCodes.ELEMENT_NOT_FOUND) {
-          console.log('Skipping this row due to missing elements');
+          skippedCount++;
+          logger.warn('Skipping this row due to missing elements');
+          logProcessingResult({
+            type: 'skip',
+            rowId: `row-${processedCount + errorCount}`,
+            message: 'Skipped row due to missing elements',
+            details: { error: error.message }
+          });
           await page.waitForTimeout(config.afterSubmitWaitTime);
         } else {
+          logProcessingResult({
+            type: 'error',
+            rowId: `row-${processedCount + errorCount}`,
+            message: `Error processing row: ${error.message}`,
+            details: { error: error.message, code: error.code }
+          });
           throw error;
         }
       }
     }
 
   } catch (error: any) {
-    console.error('\n=== Fatal Error ===');
-    console.error(`Type: ${error.code || 'Unknown'}`);
-    console.error(`Message: ${error.message}`);
+    logger.error('=== Fatal Error ===', {
+      type: error.code || 'Unknown',
+      message: error.message,
+      details: error.details,
+      stack: process.env.DEBUG === 'true' ? error.stack : undefined
+    });
     
-    if (error.details) {
-      console.error('Details:', error.details);
-    }
-    
-    if (process.env.DEBUG === 'true') {
-      console.error('Stack trace:', error.stack);
-    }
+    logProcessingResult({
+      type: 'error',
+      message: `Fatal error: ${error.message}`,
+      details: {
+        type: error.code || 'Unknown',
+        message: error.message,
+        details: error.details
+      }
+    });
     
     process.exit(1);
   } finally {
@@ -294,7 +324,7 @@ async function applyTimecard() {
 
 // Handle unhandled rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection', { promise, reason });
   process.exit(1);
 });
 

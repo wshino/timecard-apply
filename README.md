@@ -51,12 +51,21 @@ Note: The program will open a browser window so you can see what's happening. Pl
 - pnpm (`npm install -g pnpm`)
 - A KingOfTime account with login access
 
+## Logging
+
+The program creates detailed logs in the `logs/` directory:
+- `application.log` - General application logs
+- `error.log` - Error logs only
+- `processing-history-YYYY-MM-DD.log` - Daily processing history
+- `sessions.log` - Session start/end statistics
+
 ## Common Issues
 
 If you see an error message:
 - Check if your `.env` file is set up correctly
 - Make sure your KingOfTime ID and password are correct
 - Verify that you have a stable internet connection
+- Check the logs in the `logs/` directory for detailed error information
 
 ## Development
 
