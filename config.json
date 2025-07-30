@@ -8,5 +8,8 @@
   "pageLoadTimeout": 10000,
   "formWaitTime": 3000,
   "afterSubmitWaitTime": 2000,
+  "maxRetries": 3,
+  "retryDelayMs": 2000,
+  "retryBackoffFactor": 2,
   "debug": false
 }

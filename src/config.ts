@@ -14,6 +14,11 @@ export interface Config {
   formWaitTime: number;
   afterSubmitWaitTime: number;
   
+  // Retry settings
+  maxRetries: number;
+  retryDelayMs: number;
+  retryBackoffFactor: number;
+  
   // Debug settings
   debug: boolean;
 }
@@ -33,6 +38,11 @@ export const defaultConfig: Config = {
   pageLoadTimeout: 10000,
   formWaitTime: 3000,
   afterSubmitWaitTime: 2000,
+  
+  // Retry settings
+  maxRetries: 3,
+  retryDelayMs: 2000,
+  retryBackoffFactor: 2,
   
   // Debug settings
   debug: false,

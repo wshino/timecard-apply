@@ -11,16 +11,25 @@ import {
 } from './utils/error-handler';
 import { Config, loadConfig } from './config';
 import { logger, logProcessingResult, logSession } from './utils/logger';
+import { withRetry, isRetryableError } from './utils/retry';
 
 dotenv.config();
 
 async function login(page: Page, config: Config): Promise<void> {
   try {
     logger.info('Navigating to login page...');
-    await page.goto('https://login.ta.kingoftime.jp/admin', { 
-      waitUntil: 'domcontentloaded',
-      timeout: config.navigationTimeout 
-    });
+    await withRetry(
+      () => page.goto('https://login.ta.kingoftime.jp/admin', { 
+        waitUntil: 'domcontentloaded',
+        timeout: config.navigationTimeout 
+      }),
+      {
+        maxAttempts: config.maxRetries,
+        delayMs: config.retryDelayMs,
+        backoffFactor: config.retryBackoffFactor,
+        shouldRetry: isRetryableError,
+      }
+    );
 
     // Check for required credentials
     if (!process.env.KINGOFTIME_ID || !process.env.KINGOFTIME_PASSWORD) {
@@ -52,7 +61,15 @@ async function login(page: Page, config: Config): Promise<void> {
 
     // Wait for navigation and check for login errors
     try {
-      await page.waitForNavigation({ timeout: config.pageLoadTimeout, waitUntil: 'networkidle' });
+      await withRetry(
+        () => page.waitForNavigation({ timeout: config.pageLoadTimeout, waitUntil: 'networkidle' }),
+        {
+          maxAttempts: config.maxRetries,
+          delayMs: config.retryDelayMs,
+          backoffFactor: config.retryBackoffFactor,
+          shouldRetry: isRetryableError,
+        }
+      );
     } catch (error) {
       await handleLoginError(page, error);
     }
@@ -262,7 +279,25 @@ async function applyTimecard() {
       logger.info(`Found unsubmitted error row (${processedCount + 1})`);
       
       try {
-        await processErrorRow(page, targetRow, config);
+        await withRetry(
+          () => processErrorRow(page, targetRow, config),
+          {
+            maxAttempts: config.maxRetries,
+            delayMs: config.retryDelayMs,
+            backoffFactor: config.retryBackoffFactor,
+            shouldRetry: (error) => {
+              // Retry on specific errors
+              if (isRetryableError(error)) {
+                return true;
+              }
+              // Also retry on element not found errors as the page might be loading
+              if (error.code === ErrorCodes.ELEMENT_NOT_FOUND) {
+                return true;
+              }
+              return false;
+            },
+          }
+        );
         processedCount++;
         logger.info(`✓ Successfully processed row ${processedCount}`);
         logProcessingResult({
