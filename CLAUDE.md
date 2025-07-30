@@ -15,7 +15,7 @@ pnpm install
 
 ### スクリプトの実行
 ```bash
-pnpm start
+pnpm timecard-apply
 # または
 npx ts-node src/timecard-apply.ts
 ```
@@ -25,42 +25,56 @@ npx ts-node src/timecard-apply.ts
 pnpm build
 ```
 
+### テストの実行
+```bash
+pnpm test  # 現在未実装
+```
+
 ## アーキテクチャ
 
 ### メインロジック (src/timecard-apply.ts)
 
 1. **認証フロー**
-   - 環境変数から認証情報を取得（MY_COMPANY_ID, MY_ID, MY_PASSWORD）
-   - King of Timeログインページで多段階認証を実行
+   - 環境変数から認証情報を取得（KINGOFTIME_ID, KINGOFTIME_PASSWORD）
+   - King of Timeログインページ（https://login.ta.kingoftime.jp/admin）で認証
 
 2. **エラー検出ロジック**
-   - `tr.ui-widget-content.jqgrow.ui-row-ltr` セレクタでテーブル行を取得
-   - 各行の最初のセルのテキストが空でない場合をエラー行として判定
+   - `tr:has(td[title="エラー勤務です。"])` セレクタでエラー行を検出
+   - 未申請の行（`span.specific-requested`が存在しない行）のみを処理対象とする
 
 3. **打刻申請処理**
-   - 行クリック → ダイアログ表示待機
-   - 打刻申請オプションを選択
+   - 打刻申請オプションをドロップダウンから選択
    - 出勤時刻（10:00）・退勤時刻（19:00）を入力
-   - OKボタンクリックで申請実行
+   - 申請理由として「x」を入力
+   - 最終確認ボタン（#button_01）クリックで申請実行
 
 ### 環境変数の設定
 
 `.env`ファイルに以下を設定：
 ```
-MY_COMPANY_ID=your_company_id
-MY_ID=your_id
-MY_PASSWORD=your_password
+KINGOFTIME_ID=your_id_here
+KINGOFTIME_PASSWORD=your_password_here
 ```
 
 ## 重要な実装詳細
 
-- **セレクタの特殊性**: `#recording_timestamp_table` テーブル内の行を特定するため、jQueryUIのクラス名を使用
-- **待機処理**: 各操作後にUIの更新を待つため、適切なwaitForSelector/waitForTimeoutを使用
+- **セレクタの特殊性**: King of Timeの特殊なDOM構造に対応したセレクタを使用
+- **待機処理**: 各操作後にUIの更新を待つため、適切なwaitForTimeout/waitForSelectorを使用
 - **ブラウザ設定**: `headless: false`で動作を視覚的に確認可能（本番環境ではtrueに変更推奨）
 - **エラーハンドリング**: try-catchでエラーをキャッチし、ブラウザを確実にクローズ
+- **ループ処理**: エラー行がなくなるまで自動的に処理を継続
+
+## TypeScript設定
+
+- Target: ES2020
+- Module: CommonJS
+- Strict: true
+- Source: src/
+- Output: dist/
 
 ## 開発時の注意点
 
 - Playwrightのセレクタが変更される可能性があるため、King of Timeの画面変更時は要確認
 - 認証情報は絶対にコミットしないこと（.gitignoreで.envを除外済み）
 - タイムアウト値は環境により調整が必要な場合がある
+- エラー行の検出ロジックは`td[title="エラー勤務です。"]`に依存しているため、UIテキストの変更に注意
