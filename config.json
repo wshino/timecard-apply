@@ -1,0 +1,12 @@
+{
+  "clockInTime": "1000",
+  "clockOutTime": "1900",
+  "applicationReason": "x",
+  "headless": false,
+  "navigationTimeout": 30000,
+  "elementTimeout": 10000,
+  "pageLoadTimeout": 10000,
+  "formWaitTime": 3000,
+  "afterSubmitWaitTime": 2000,
+  "debug": false
+}

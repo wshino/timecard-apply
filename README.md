@@ -15,6 +15,17 @@ KINGOFTIME_ID=your_id_here
 KINGOFTIME_PASSWORD=your_password_here
 ```
 
+3. (Optional) Create a `config.json` file to customize settings:
+```json
+{
+  "clockInTime": "1000",    // 10:00
+  "clockOutTime": "1900",   // 19:00
+  "applicationReason": "x",
+  "headless": false,
+  "debug": false
+}
+```
+
 ## How to Use
 
 Run the program with:
