@@ -6,7 +6,10 @@
   "scripts": {
     "timecard-apply": "ts-node src/timecard-apply.ts",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test -c test/e2e/playwright.config.ts"
   },
   "keywords": [],
   "author": "",
@@ -17,8 +20,11 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
     "@types/node": "^20.11.24",
+    "@vitest/ui": "^3.2.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.4"
   }
 }

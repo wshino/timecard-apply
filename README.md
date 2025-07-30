@@ -67,12 +67,31 @@ If you see an error message:
 - Verify that you have a stable internet connection
 - Check the logs in the `logs/` directory for detailed error information
 
+## Testing
+
+Run tests with the following commands:
+```bash
+# Run all unit tests
+pnpm test
+
+# Run tests with UI
+pnpm test:ui
+
+# Run tests with coverage
+pnpm test:coverage
+
+# Run E2E tests (requires mock server)
+pnpm test:e2e
+```
+
 ## Development
 
 This program was developed using:
 - Playwright for browser automation
 - Cursor IDE with MCP (Multi-model Code Processing) server for development assistance
 - TypeScript for type-safe code
+- Vitest for unit testing
+- Winston for logging
 
 ## Support
 
