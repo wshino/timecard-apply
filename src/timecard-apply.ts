@@ -90,7 +90,11 @@ async function login(page: Page, config: Config): Promise<void> {
 }
 
 async function processErrorRow(page: Page, targetRow: any, config: Config): Promise<void> {
-  logger.info('Starting to process error row...');
+  if (config.dryRun) {
+    logger.info('[DRY RUN] Starting to process error row...');
+  } else {
+    logger.info('Starting to process error row...');
+  }
   
   // Select time clock application option
   logger.debug('Selecting time clock application option...');
@@ -195,9 +199,14 @@ async function processErrorRow(page: Page, targetRow: any, config: Config): Prom
     );
   }
   
-  await finalButton.click();
-  logger.info('Final button clicked, waiting for page refresh...');
-  await page.waitForTimeout(config.afterSubmitWaitTime);
+  if (config.dryRun) {
+    logger.info('[DRY RUN] Would click submit button (skipping actual submission)');
+    logger.info(`[DRY RUN] Would submit: Clock-in: ${config.clockInTime}, Clock-out: ${config.clockOutTime}, Reason: ${config.applicationReason}`);
+  } else {
+    await finalButton.click();
+    logger.info('Final button clicked, waiting for page refresh...');
+    await page.waitForTimeout(config.afterSubmitWaitTime);
+  }
 }
 
 async function applyTimecard() {
@@ -219,6 +228,11 @@ async function applyTimecard() {
     
     if (config.debug) {
       logger.debug('Configuration:', config);
+    }
+    
+    if (config.dryRun) {
+      logger.warn('=== DRY RUN MODE ENABLED ===');
+      logger.warn('No actual time card applications will be submitted');
     }
     
     browser = await chromium.launch({ headless: config.headless });
@@ -256,7 +270,11 @@ async function applyTimecard() {
       const errorRows = await page.$$('tr:has(td[title="エラー勤務です。"])');
       if (!errorRows || errorRows.length === 0) {
         const duration = Date.now() - startTime;
-        logger.info(`Processing complete! Processed: ${processedCount}, Errors: ${errorCount}, Skipped: ${skippedCount}`);
+        if (config.dryRun) {
+          logger.info(`[DRY RUN] Processing complete! Would process: ${processedCount}, Errors: ${errorCount}, Skipped: ${skippedCount}`);
+        } else {
+          logger.info(`Processing complete! Processed: ${processedCount}, Errors: ${errorCount}, Skipped: ${skippedCount}`);
+        }
         logSession('end', { processed: processedCount, errors: errorCount, skipped: skippedCount, duration });
         break;
       }
@@ -276,7 +294,11 @@ async function applyTimecard() {
         break;
       }
 
-      logger.info(`Found unsubmitted error row (${processedCount + 1})`);
+      if (config.dryRun) {
+        logger.info(`[DRY RUN] Found unsubmitted error row (${processedCount + 1})`);
+      } else {
+        logger.info(`Found unsubmitted error row (${processedCount + 1})`);
+      }
       
       try {
         await withRetry(
@@ -299,12 +321,21 @@ async function applyTimecard() {
           }
         );
         processedCount++;
-        logger.info(`✓ Successfully processed row ${processedCount}`);
-        logProcessingResult({
-          type: 'success',
-          rowId: `row-${processedCount}`,
-          message: `Successfully processed row ${processedCount}`
-        });
+        if (config.dryRun) {
+          logger.info(`[DRY RUN] ✓ Would process row ${processedCount}`);
+          logProcessingResult({
+            type: 'success',
+            rowId: `row-${processedCount}`,
+            message: `[DRY RUN] Would process row ${processedCount}`
+          });
+        } else {
+          logger.info(`✓ Successfully processed row ${processedCount}`);
+          logProcessingResult({
+            type: 'success',
+            rowId: `row-${processedCount}`,
+            message: `Successfully processed row ${processedCount}`
+          });
+        }
       } catch (error: any) {
         errorCount++;
         logger.error(`✗ Error processing row: ${error.message}`);

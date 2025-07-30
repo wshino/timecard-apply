@@ -21,6 +21,9 @@ export interface Config {
   
   // Debug settings
   debug: boolean;
+  
+  // Operation mode
+  dryRun: boolean;
 }
 
 export const defaultConfig: Config = {
@@ -46,6 +49,9 @@ export const defaultConfig: Config = {
   
   // Debug settings
   debug: false,
+  
+  // Operation mode
+  dryRun: false,
 };
 
 export function loadConfig(customConfig?: Partial<Config>): Config {
@@ -66,6 +72,9 @@ export function loadConfig(customConfig?: Partial<Config>): Config {
   }
   if (process.env.DEBUG === 'true') {
     config.debug = true;
+  }
+  if (process.env.DRY_RUN === 'true') {
+    config.dryRun = true;
   }
   
   // Override with custom config if provided

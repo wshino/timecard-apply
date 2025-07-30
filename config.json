@@ -11,5 +11,6 @@
   "maxRetries": 3,
   "retryDelayMs": 2000,
   "retryBackoffFactor": 2,
-  "debug": false
+  "debug": false,
+  "dryRun": false
 }

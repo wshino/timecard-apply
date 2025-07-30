@@ -22,7 +22,8 @@ KINGOFTIME_PASSWORD=your_password_here
   "clockOutTime": "1900",   // 19:00
   "applicationReason": "x",
   "headless": false,
-  "debug": false
+  "debug": false,
+  "dryRun": false         // Set to true to preview without submitting
 }
 ```
 
@@ -31,6 +32,11 @@ KINGOFTIME_PASSWORD=your_password_here
 Run the program with:
 ```bash
 pnpm timecard-apply
+```
+
+For dry run mode (preview without submitting):
+```bash
+DRY_RUN=true pnpm timecard-apply
 ```
 
 What the program does:
