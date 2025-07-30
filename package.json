@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "commander": "^14.0.0",
     "dotenv": "^16.4.1",
     "playwright": "^1.42.1",
     "winston": "^3.17.0"

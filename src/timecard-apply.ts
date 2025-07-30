@@ -12,6 +12,7 @@ import {
 import { Config, loadConfig } from './config';
 import { logger, logProcessingResult, logSession } from './utils/logger';
 import { withRetry, isRetryableError } from './utils/retry';
+import { parseCliArguments, mergeConfigWithCliOptions, loadConfigFromFile, CliOptions } from './cli';
 
 dotenv.config();
 
@@ -213,26 +214,41 @@ async function applyTimecard() {
   let browser: Browser | null = null;
   
   try {
+    // Parse CLI arguments
+    const cliOptions = parseCliArguments();
+    
     // Load configuration
     let config: Config;
-    const configPath = path.join(process.cwd(), 'config.json');
+    const configData = loadConfigFromFile(cliOptions.config || 'config.json');
     
-    if (fs.existsSync(configPath)) {
-      logger.info('Loading configuration from config.json...');
-      const configData = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (configData) {
+      logger.info(`Loading configuration from ${cliOptions.config || 'config.json'}...`);
       config = loadConfig(configData);
     } else {
       logger.info('Using default configuration...');
       config = loadConfig();
     }
     
+    // Merge CLI options with config
+    config = mergeConfigWithCliOptions(config, cliOptions);
+    
     if (config.debug) {
       logger.debug('Configuration:', config);
+      logger.debug('CLI Options:', cliOptions);
     }
     
     if (config.dryRun) {
       logger.warn('=== DRY RUN MODE ENABLED ===');
       logger.warn('No actual time card applications will be submitted');
+    }
+    
+    if (cliOptions.maxRows) {
+      logger.info(`Maximum rows to process: ${cliOptions.maxRows}`);
+    }
+    
+    if (cliOptions.dateFrom || cliOptions.dateTo) {
+      logger.info(`Date range: ${cliOptions.dateFrom || 'any'} to ${cliOptions.dateTo || 'any'}`);
+      logger.warn('Note: Date filtering is not yet implemented');
     }
     
     browser = await chromium.launch({ headless: config.headless });
@@ -294,10 +310,20 @@ async function applyTimecard() {
         break;
       }
 
+      const rowIndex = processedCount + 1;
+      
+      // Check if we should process this row based on CLI options
+      if (cliOptions.maxRows && rowIndex > cliOptions.maxRows) {
+        logger.info(`Reached maximum rows limit (${cliOptions.maxRows}), stopping`);
+        break;
+      }
+      
+      // TODO: Add date filtering here when date information is available from the page
+      
       if (config.dryRun) {
-        logger.info(`[DRY RUN] Found unsubmitted error row (${processedCount + 1})`);
+        logger.info(`[DRY RUN] Found unsubmitted error row (${rowIndex})`);
       } else {
-        logger.info(`Found unsubmitted error row (${processedCount + 1})`);
+        logger.info(`Found unsubmitted error row (${rowIndex})`);
       }
       
       try {

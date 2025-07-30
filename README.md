@@ -39,6 +39,36 @@ For dry run mode (preview without submitting):
 DRY_RUN=true pnpm timecard-apply
 ```
 
+## Command Line Options
+
+```bash
+pnpm timecard-apply [options]
+```
+
+Options:
+- `-c, --config <path>` - Path to config file (default: config.json)
+- `-d, --dry-run` - Run in dry mode without submitting
+- `--headless` - Run browser in headless mode
+- `--debug` - Enable debug logging
+- `--clock-in <time>` - Clock in time in HHMM format (default: 1000)
+- `--clock-out <time>` - Clock out time in HHMM format (default: 1900)
+- `--reason <text>` - Application reason (default: x)
+- `--max-rows <number>` - Maximum number of rows to process
+- `--date-from <date>` - Process from date (YYYY-MM-DD) *Not yet implemented*
+- `--date-to <date>` - Process to date (YYYY-MM-DD) *Not yet implemented*
+
+Examples:
+```bash
+# Process only 5 rows in dry run mode
+pnpm timecard-apply --dry-run --max-rows 5
+
+# Use custom times
+pnpm timecard-apply --clock-in 0930 --clock-out 1830
+
+# Debug mode with custom config
+pnpm timecard-apply --debug --config my-config.json
+```
+
 What the program does:
 - Logs into your KingOfTime account
 - Finds rows with time clock errors
