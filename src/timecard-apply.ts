@@ -84,12 +84,20 @@ async function applyTimecard() {
             // Find and click the initial application button
             console.log('Looking for initial application button...');
             const buttons = await page.$$('input[type="button"]');
+            let buttonClicked = false;
             for (const button of buttons) {
               const buttonId = await button.getAttribute('id');
               if (buttonId && buttonId.startsWith('button_') && !buttonId.includes('schedule')) {
-                console.log('Found button, clicking...');
+                console.log(`Found button with id: ${buttonId}, clicking...`);
+                await button.click();
+                buttonClicked = true;
                 break;
               }
+            }
+            
+            if (!buttonClicked) {
+              console.log('Could not find application button, skipping row');
+              continue;
             }
 
             // Wait for the form to appear
